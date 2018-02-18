@@ -3,8 +3,9 @@
 import os
 from collections import defaultdict
 
+from pprint import pprint
 
-def read_etags(path):
+def read_etags(path,identifier):
     cur_path = path
     etags = None
     while 1:
@@ -22,6 +23,7 @@ def read_etags(path):
                 return None
     data = etags.read().split('\x0c')
     defs = defaultdict(list)
+
     if data[0]:
         raise Exception("etags TAGS should start with x0c")
     for section in data[1:]:
@@ -46,12 +48,20 @@ def read_etags(path):
                 tagname = tag_definition
                 location = rest
             line_number, byte_offset = location.split(',', 1)
-            defs[tagname].append((
-                cur_path + '/' + filename,
-                line_number,
-                byte_offset,
-                tag_definition
-            ))
+            
+            if tagname.find(identifier)!=-1:
+                rpath=cur_path + "/"+filename
+                
+                if os.path.isfile(rpath) != True:
+                    rpath=filename
+                
+                defs[tagname].append([
+    	            rpath,
+    	            line_number,
+    	            byte_offset,
+    	            tag_definition
+    	        ])
+    	        
     return defs
 
 
@@ -64,8 +74,17 @@ class EtagsNavigator:
         doc_path = os.path.dirname(
             os.path.realpath(doc.get_location().get_path())
         )
-        for path, lineno, offset, code in read_etags(doc_path)[identifier]:
-            yield path, int(lineno), code, doc.get_location().get_path()
+        
+        vararr=read_etags(doc_path, identifier)
+        
+        realval=None
+        
+        for k,v in vararr.items():
+            
+            if k.find(identifier)!=-1:
+                
+                for vv in v:
+                    yield vv[0], int(vv[1]), vv[2], doc.get_location().get_path()
 
     def getReferences(self, doc, identifier):
         pass
